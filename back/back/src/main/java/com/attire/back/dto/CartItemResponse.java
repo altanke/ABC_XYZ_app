@@ -1,0 +1,31 @@
+package com.attire.back.dto;
+
+public class CartItemResponse {
+    private Long id;
+    private UserDto user;
+    private ProductDto product;
+    private int quantity;
+
+    public CartItemResponse(Long id, UserDto user, ProductDto product, int quantity) {
+        this.id = id;
+        this.user = user;
+        this.product = product;
+        this.quantity = quantity;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public UserDto getUser() {
+        return user;
+    }
+
+    public ProductDto getProduct() {
+        return product;
+    }
+
+    public int getQuantity() {
+        return quantity;
+    }
+}
