@@ -7,20 +7,19 @@ import { useState, useEffect } from "react";
 export default function Home() {
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
-  const [searchQuery, setSearchQuery] = useState(""); // Текущий ввод
-  const [filterQuery, setFilterQuery] = useState(""); // Запрос для фильтрации
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterQuery, setFilterQuery] = useState("");
   const [currentUser, setCurrentUser] = useState(null);
 
-  // Загрузка продуктов
   useEffect(() => {
     const fetchProducts = async () => {
       try {
         const response = await fetch("http://localhost:8080/api/products");
         if (!response.ok) throw new Error("Ошибка загрузки продуктов");
         const data = await response.json();
-        console.log("Загруженные продукты:", data); // Проверяем данные
+        console.log("Загруженные продукты:", data);
         setProducts(data);
-        setFilteredProducts(data); // Изначально показываем все продукты
+        setFilteredProducts(data);
       } catch (error) {
         console.error(error);
       }
@@ -28,31 +27,28 @@ export default function Home() {
 
     fetchProducts();
 
-    // Загрузка пользователя
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
       setCurrentUser(JSON.parse(storedUser));
     }
   }, []);
 
-  // Фильтрация продуктов по имени и категории
   useEffect(() => {
     const filtered = products.filter((product) => {
       const searchLower = filterQuery.toLowerCase();
       return (
         product.name.toLowerCase().includes(searchLower) ||
-        product.category.toLowerCase().includes(searchLower) // Фильтрация по категории
+        product.category.toLowerCase().includes(searchLower)
       );
     });
 
-    console.log("Отфильтрованные продукты:", filtered); // Проверяем фильтрацию
+    console.log("Отфильтрованные продукты:", filtered);
     setFilteredProducts(filtered);
   }, [filterQuery, products]);
 
-  // Обработчик нажатия клавиши Enter
   const handleSearch = (e) => {
     if (e.key === "Enter") {
-      setFilterQuery(searchQuery); // Устанавливаем фильтр только при Enter
+      setFilterQuery(searchQuery);
     }
   };
 
@@ -63,9 +59,9 @@ export default function Home() {
         setSearchQuery={setSearchQuery}
         handleSearch={handleSearch}
       />
-      <div className="w-full px-52 py-10">
+      <div className="w-full px-4 sm:px-8 md:px-16 lg:px-24 xl:px-40 py-10">
         <p className="text-3xl font-bold text-center mb-12">Список товаров</p>
-        <div className="grid grid-cols-3 gap-x-[2%] gap-y-16 place-content-center">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
           {filteredProducts.length > 0 ? (
             filteredProducts.map((product) => (
               <ProductCard
@@ -74,8 +70,10 @@ export default function Home() {
                 currentUser={currentUser}
               />
             ))
+          ) : products.length === 0 ? (
+            <p className="col-span-full text-center">Загрузка товаров...</p>
           ) : (
-            <p>Товары не найдены</p>
+            <p className="col-span-full text-center">Товары не найдены</p>
           )}
         </div>
       </div>

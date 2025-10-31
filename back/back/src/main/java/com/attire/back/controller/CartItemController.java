@@ -1,8 +1,9 @@
 package com.attire.back.controller;
 
+import com.attire.back.dto.AddToCartRequest;
 import com.attire.back.dto.CartItemResponse;
 import com.attire.back.dto.ProductDto;
-import com.attire.back.dto.UserDto;
+import com.attire.back.dto.UserDto; // <--- Убедись, что UserDto импортирован
 import com.attire.back.model.CartItem;
 import com.attire.back.model.Product;
 import com.attire.back.model.User;
@@ -10,8 +11,10 @@ import com.attire.back.service.CartItemService;
 import com.attire.back.service.ProductService;
 import com.attire.back.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder; // <--- Убедись, что Builder импортирован
 
 import java.util.List;
 import java.util.Optional;
@@ -30,110 +33,103 @@ public class CartItemController {
     @Autowired
     private ProductService productService;
 
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<CartItemResponse>> getCartItemsByUserId(@PathVariable Long userId) {
+        List<CartItem> cartItems = cartItemService.getCartItemsByUserId(userId);
+        List<CartItemResponse> cartItemResponses = cartItems.stream()
+                .map(this::mapToCartItemResponse)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(cartItemResponses);
+    }
+
     @PostMapping
-    public ResponseEntity<CartItemResponse> addToCart(@RequestBody CartItem cartItem) {
-        if (cartItem.getUser() == null || cartItem.getUser().getId() == null) {
-            return ResponseEntity.badRequest().body(null);
+    public ResponseEntity<CartItemResponse> addCartItem(@RequestBody AddToCartRequest request) { // <--- ИЗМЕНЕНИЕ ЗДЕСЬ
+
+        Optional<User> userOptional = userService.findById(request.getUserId());
+        Optional<Product> productOptional = productService.findById(request.getProductId());
+        Integer quantity = (request.getQuantity() != null && request.getQuantity() > 0) ? request.getQuantity() : 1;
+
+        if (userOptional.isPresent() && productOptional.isPresent()) {
+            User user = userOptional.get();
+            Product product = productOptional.get();
+
+            Optional<CartItem> existingCartItem = cartItemService.findByUserIdAndProductId(request.getUserId(), request.getProductId());
+            CartItem cartItem;
+            if (existingCartItem.isPresent()) {
+                cartItem = existingCartItem.get();
+                cartItem.setQuantity(cartItem.getQuantity() + quantity);
+            } else {
+                cartItem = new CartItem(user, product, quantity);
+            }
+
+            CartItem savedCartItem = cartItemService.saveCartItem(cartItem);
+
+            return new ResponseEntity<>(mapToCartItemResponse(savedCartItem), HttpStatus.CREATED);
+        } else {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
-
-        if (cartItem.getProduct() == null || cartItem.getProduct().getId() == null) {
-            return ResponseEntity.badRequest().body(null);
-        }
-
-        Optional<User> user = userService.findById(cartItem.getUser().getId());
-        Optional<Product> product = productService.findById(cartItem.getProduct().getId());
-
-        if (user.isEmpty() || product.isEmpty()) {
-            return ResponseEntity.badRequest().body(null);
-        }
-
-        Optional<CartItem> existingCartItem = cartItemService.findByUserIdAndProductId(
-                cartItem.getUser().getId(),
-                cartItem.getProduct().getId()
-        );
-
-        if (existingCartItem.isPresent()) {
-            CartItem updatedCartItem = existingCartItem.get();
-            updatedCartItem.setQuantity(updatedCartItem.getQuantity() + cartItem.getQuantity());
-            CartItem savedCartItem = cartItemService.saveCartItem(updatedCartItem);
-
-            return ResponseEntity.ok(mapToCartItemResponse(savedCartItem));
-        }
-
-        cartItem.setUser(user.get());
-        cartItem.setProduct(product.get());
-        CartItem savedCartItem = cartItemService.saveCartItem(cartItem);
-
-        return ResponseEntity.ok(mapToCartItemResponse(savedCartItem));
     }
 
     @PutMapping("/{cartItemId}")
-    public ResponseEntity<CartItemResponse> updateCartItemQuantity(
+    public ResponseEntity<CartItemResponse> updateCartItem(
             @PathVariable Long cartItemId,
-            @RequestBody Integer newQuantity) {
+            @RequestBody Integer quantity) {
 
-        if (newQuantity <= 0) {
+        if (quantity == null || quantity <= 0) {
             return ResponseEntity.badRequest().build();
         }
 
         Optional<CartItem> cartItemOptional = cartItemService.findById(cartItemId);
-
-        if (cartItemOptional.isEmpty()) {
-            return ResponseEntity.notFound().build();
+        if (cartItemOptional.isPresent()) {
+            CartItem cartItem = cartItemOptional.get();
+            cartItem.setQuantity(quantity);
+            CartItem updatedCartItem = cartItemService.saveCartItem(cartItem);
+            return ResponseEntity.ok(mapToCartItemResponse(updatedCartItem));
+        } else {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
-
-        CartItem cartItem = cartItemOptional.get();
-        cartItem.setQuantity(newQuantity);
-        CartItem updatedCartItem = cartItemService.saveCartItem(cartItem);
-
-        return ResponseEntity.ok(mapToCartItemResponse(updatedCartItem));
-    }
-
-    @GetMapping("/{userId}")
-    public ResponseEntity<List<CartItemResponse>> getCartItems(@PathVariable Long userId) {
-        Optional<User> user = userService.findById(userId);
-        if (user.isEmpty()) {
-            return ResponseEntity.badRequest().body(null);
-        }
-
-        List<CartItem> cartItems = cartItemService.getCartItemsByUserId(userId);
-
-        List<CartItemResponse> responses = cartItems.stream()
-                .map(this::mapToCartItemResponse)
-                .collect(Collectors.toList());
-
-        return ResponseEntity.ok(responses);
     }
 
     @DeleteMapping("/{cartItemId}")
     public ResponseEntity<Void> deleteCartItem(@PathVariable Long cartItemId) {
-        Optional<CartItem> cartItem = cartItemService.findById(cartItemId);
-        if (cartItem.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
+        cartItemService.deleteCartItem(cartItemId);
+        return ResponseEntity.noContent().build();
+    }
 
-        cartItemService.deleteCartItem(cartItem.get());
+    @DeleteMapping("/user/{userId}")
+    public ResponseEntity<Void> clearCart(@PathVariable Long userId) {
+        cartItemService.deleteCartItemsByUserId(userId);
         return ResponseEntity.noContent().build();
     }
 
     private CartItemResponse mapToCartItemResponse(CartItem cartItem) {
+        Product product = cartItem.getProduct();
+        User user = cartItem.getUser();
+
+        String imageUrl = null;
+        if (product.getImageFileName() != null && !product.getImageFileName().isBlank()) {
+            imageUrl = ServletUriComponentsBuilder.fromCurrentContextPath()
+                    .path("/api/files/images/")
+                    .path(product.getImageFileName())
+                    .toUriString();
+        }
+
+        ProductDto productDto = new ProductDto(
+                product.getId(),
+                product.getName(),
+                product.getPrice(),
+                product.getDescription(),
+                product.getCategory(),
+                imageUrl
+        );
+
+        UserDto userDto = new UserDto(user.getId(), user.getUsername(), user.getEmail());
+
         return new CartItemResponse(
                 cartItem.getId(),
-                new UserDto(
-                        cartItem.getUser().getId(),
-                        cartItem.getUser().getUsername(),
-                        cartItem.getUser().getEmail()
-                ),
-                new ProductDto(
-                        cartItem.getProduct().getId(),
-                        cartItem.getProduct().getName(),
-                        cartItem.getProduct().getPrice(),
-                        cartItem.getProduct().getDescription(),
-                        cartItem.getProduct().getCategory(),
-                        cartItem.getProduct().getImageUrl()
-                ),
+                userDto,
+                productDto,
                 cartItem.getQuantity()
         );
     }
 }
-

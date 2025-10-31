@@ -19,24 +19,26 @@ public class Product {
     @Column(nullable = false)
     private Double price;
 
-    @Column(name = "image_url")
-    private String imageUrl;
+    // Изменения здесь:
+    @Column(name = "image_file_name")
+    private String imageFileName;
 
     @Column(nullable = false)
     private String category;
 
-    // Конструкторы
+    @Column(nullable = false)
+    private boolean isActive = true;
+
     public Product() {}
 
-    public Product(String name, String description, Double price, String imageUrl, String category) {
+    public Product(String name, String description, Double price, String imageFileName, String category) {
         this.name = name;
         this.description = description;
         this.price = price;
-        this.imageUrl = imageUrl;
+        this.imageFileName = imageFileName;
         this.category = category;
     }
 
-    // Геттеры и сеттеры
     public Long getId() {
         return id;
     }
@@ -69,12 +71,12 @@ public class Product {
         this.price = price;
     }
 
-    public String getImageUrl() {
-        return imageUrl;
+    public String getImageFileName() {
+        return imageFileName;
     }
 
-    public void setImageUrl(String imageUrl) {
-        this.imageUrl = imageUrl;
+    public void setImageFileName(String imageFileName) {
+        this.imageFileName = imageFileName;
     }
 
     public String getCategory() {
@@ -83,5 +85,13 @@ public class Product {
 
     public void setCategory(String category) {
         this.category = category;
+    }
+
+    public boolean isActive() {
+        return isActive;
+    }
+
+    public void setActive(boolean active) {
+        isActive = active;
     }
 }

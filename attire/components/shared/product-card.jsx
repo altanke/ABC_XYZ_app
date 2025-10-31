@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
 import { useContext } from "react";
 import { UserContext } from "@/context/UserContext";
@@ -9,7 +10,7 @@ export default function ProductCard({ product }) {
   const { toast } = useToast();
   const { currentUser } = useContext(UserContext);
 
-  const addToCart = async (id) => {
+  const addToCart = async (productId) => {
     if (!currentUser) {
       toast({
         title: "Ошибка",
@@ -26,14 +27,15 @@ export default function ProductCard({ product }) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          user: { id: currentUser.id }, // Указываем ID пользователя
-          product: { id }, // Указываем ID продукта
-          quantity: 1, // По умолчанию добавляем 1 товар
+          userId: currentUser.id,
+          productId: productId,
+          quantity: 1,
         }),
       });
 
       if (!response.ok) {
-        throw new Error("Ошибка при добавлении товара в корзину");
+        const errorText = await response.text();
+        throw new Error(errorText || "Ошибка при добавлении товара в корзину");
       }
 
       toast({
@@ -52,11 +54,17 @@ export default function ProductCard({ product }) {
   return (
     <div className="flex flex-col w-full border shadow-lg rounded-xl bg-white">
       <Link href={`/product/${product.id}`}>
-        <div className="w-full p-4 h-[450px] overflow-hidden cursor-pointer">
-          <img
-            src={product.imageUrl}
-            className="h-full w-full object-cover rounded-sm"
+        <div className="w-full p-4 h-[450px] overflow-hidden cursor-pointer relative">
+          <Image
+            src={product.imageUrl || "/placeholder.png"}
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            className="object-cover rounded-sm"
             alt={product.name}
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.src = "/placeholder.png";
+            }}
           />
         </div>
       </Link>

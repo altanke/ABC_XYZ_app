@@ -36,11 +36,22 @@ export default function Header({ searchQuery, setSearchQuery, handleSearch }) {
               {/* Имя пользователя */}
               <span className="text-[#f5f5f5]">{currentUser.username}</span>
               {currentUser.role === "ADMIN" ? (
-                <Link href="/admin">
-                  <button className="bg-[--buttonhover] text-[#f5f5f5] rounded-md px-3 py-1 hover:bg-[--button] transition duration-300">
-                    Админ
-                  </button>
-                </Link>
+                <>
+                  {" "}
+                  {/* Используем фрагмент для нескольких кнопок */}
+                  <Link href="/admin">
+                    <button className="bg-[--buttonhover] text-[#f5f5f5] rounded-md px-3 py-1 hover:bg-[--button] transition duration-300">
+                      Товары
+                    </button>
+                  </Link>
+                  <Link href="/admin/reports">
+                    {" "}
+                    {/* Добавляем ссылку на отчеты */}
+                    <button className="bg-[--buttonhover] text-[#f5f5f5] rounded-md px-3 py-1 hover:bg-[--button] transition duration-300">
+                      Отчеты
+                    </button>
+                  </Link>
+                </>
               ) : (
                 <Link href="/cart">
                   <button className="bg-[--buttonhover] text-[#f5f5f5] rounded-md px-3 py-1 hover:bg-[--button] transition duration-300">

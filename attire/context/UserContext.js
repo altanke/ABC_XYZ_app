@@ -1,41 +1,27 @@
-// context/UserContext.js
 "use client";
 
 import { createContext, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
-  const [loading, setLoading] = useState(true); // Для отслеживания загрузки данных пользователя
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
-    // Загружаем текущего пользователя из API
-    const fetchCurrentUser = async () => {
+    setLoading(true);
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
       try {
-        setLoading(true);
-        const response = await fetch(
-          "http://localhost:8080/api/users/current",
-          {
-            credentials: "include", // Для передачи cookies, если требуется
-          }
-        );
-
-        if (response.ok) {
-          const user = await response.json();
-          setCurrentUser(user);
-        } else {
-          setCurrentUser(null); // Если пользователь не авторизован
-        }
+        setCurrentUser(JSON.parse(storedUser));
       } catch (error) {
-        console.error("Ошибка загрузки пользователя:", error);
-        setCurrentUser(null);
-      } finally {
-        setLoading(false);
+        console.error("Failed to parse stored user:", error);
+        localStorage.removeItem("user");
       }
-    };
-
-    fetchCurrentUser();
+    }
+    setLoading(false);
   }, []);
 
   const loginUser = async (email, password) => {
@@ -51,26 +37,48 @@ export const UserProvider = ({ children }) => {
       if (response.ok) {
         const user = await response.json();
         setCurrentUser(user);
-        localStorage.setItem("user", JSON.stringify(user)); // Для совместимости
+        localStorage.setItem("user", JSON.stringify(user));
       } else {
-        throw new Error("Ошибка авторизации");
+        const errorText = await response.text();
+        throw new Error(errorText || "Ошибка авторизации");
       }
     } catch (error) {
       console.error("Ошибка логина:", error);
+      localStorage.removeItem("user");
+      setCurrentUser(null);
       throw error;
     }
   };
 
   const logoutUser = async () => {
+    // Не обязательно делать запрос к бэкенду для logout, если нет сессии на сервере
+    // try {
+    //   await fetch("http://localhost:8080/api/users/logout", { method: "POST" });
+    // } catch (error) {
+    //   console.error("Ошибка при запросе logout на бэкенд:", error);
+    // } finally { // Выполняем действия в любом случае
+    localStorage.removeItem("user");
+    setCurrentUser(null);
+    router.push("/");
+  };
+
+  const registerUser = async (username, email, password) => {
     try {
-      await fetch("http://localhost:8080/api/users/logout", {
+      const response = await fetch("http://localhost:8080/api/users/register", {
         method: "POST",
-        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username, email, password, role: "USER" }), // Явно указываем роль USER
       });
-      localStorage.removeItem("user"); // Для совместимости
-      setCurrentUser(null);
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(errorData || "Ошибка регистрации");
+      }
     } catch (error) {
-      console.error("Ошибка при выходе:", error);
+      console.error("Ошибка регистрации:", error);
+      throw error;
     }
   };
 
@@ -80,6 +88,7 @@ export const UserProvider = ({ children }) => {
         currentUser,
         loginUser,
         logoutUser,
+        registerUser,
         loading,
       }}
     >

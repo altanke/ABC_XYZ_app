@@ -1,15 +1,23 @@
+// Файл: OrderController.java
 package com.attire.back.controller;
 
+import com.attire.back.dto.OrderItemDto;
 import com.attire.back.dto.OrderResponse;
-import com.attire.back.model.CartItem;
+import com.attire.back.dto.ProductDto;
 import com.attire.back.model.Order;
-import com.attire.back.service.CartItemService;
+import com.attire.back.model.Product; // Импортируем Product
 import com.attire.back.service.OrderService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+// Импортируем ServletUriComponentsBuilder
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -18,47 +26,77 @@ public class OrderController {
     @Autowired
     private OrderService orderService;
 
-    @Autowired
-    private CartItemService cartItemService;
-
-    @GetMapping("/{userId}")
-    public ResponseEntity<List<Order>> getOrdersByUserId(@PathVariable Long userId) {
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<OrderResponse>> getOrdersByUserId(@PathVariable Long userId) {
         List<Order> orders = orderService.getOrdersByUserId(userId);
-        return ResponseEntity.ok(orders);
+        List<OrderResponse> responses = orders.stream()
+                .map(this::mapOrderToResponse)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(responses);
     }
 
-    @PostMapping("/{userId}")
-    public ResponseEntity<OrderResponse> createOrder(@PathVariable Long userId) {
-        // Получаем товары в корзине
-        List<CartItem> cartItems = cartItemService.getCartItemsByUserId(userId);
+    @GetMapping("/{orderId}")
+    public ResponseEntity<OrderResponse> getOrderById(@PathVariable Long orderId) {
+        Optional<Order> orderOptional = orderService.findById(orderId);
+        return orderOptional.map(order -> ResponseEntity.ok(mapOrderToResponse(order)))
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
 
-        if (cartItems.isEmpty()) {
-            return ResponseEntity.badRequest().body(null); // Корзина пуста
+
+    @PostMapping("/user/{userId}")
+    public ResponseEntity<?> createOrder(@PathVariable Long userId) {
+        try {
+            Order savedOrder = orderService.createOrderFromCart(userId);
+            OrderResponse response = mapOrderToResponse(savedOrder);
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
+    }
 
-        // Рассчитываем общую стоимость
-        double totalPrice = cartItems.stream()
-                .mapToDouble(item -> item.getProduct().getPrice() * item.getQuantity())
-                .sum();
+    private OrderResponse mapOrderToResponse(Order order) {
+        List<OrderItemDto> itemDtos = order.getOrderItems().stream()
+                .map(item -> {
+                    // --- НАЧАЛО ИСПРАВЛЕНИЯ ---
+                    Product product = item.getProduct();
+                    String imageUrl = null;
+                    if (product.getImageFileName() != null && !product.getImageFileName().isBlank()) {
+                        imageUrl = ServletUriComponentsBuilder.fromCurrentContextPath()
+                                .path("/api/files/images/")
+                                .path(product.getImageFileName())
+                                .toUriString();
+                    }
 
-        // Создаем заказ
-        Order order = new Order();
-        order.setUser(cartItems.get(0).getUser());
-        order.setTotalPrice(totalPrice);
+                    ProductDto productDto = new ProductDto(
+                            product.getId(),
+                            product.getName(),
+                            product.getPrice(), // Текущая цена
+                            product.getDescription(),
+                            product.getCategory(),
+                            imageUrl // Используем новый URL
+                    );
+                    // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
 
-        // Сохраняем заказ
-        Order savedOrder = orderService.saveOrder(order);
+                    return new OrderItemDto(
+                            item.getId(),
+                            productDto, // Передаем созданный DTO
+                            item.getQuantity(),
+                            item.getPriceAtPurchase()
+                    );
+                })
+                .collect(Collectors.toList());
 
-        // Удаляем товары из корзины
-        cartItemService.deleteCartItemsByUserId(userId);
+        BigDecimal totalPrice = itemDtos.stream()
+                .map(item -> item.getPriceAtPurchase().multiply(BigDecimal.valueOf(item.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // Формируем ответ
-        OrderResponse response = new OrderResponse(
-                savedOrder.getId(),
-                savedOrder.getUser().getId(),
-                savedOrder.getTotalPrice()
+        return new OrderResponse(
+                order.getId(),
+                order.getUser().getId(),
+                order.getUser().getUsername(),
+                order.getOrderDate(),
+                itemDtos,
+                totalPrice
         );
-
-        return ResponseEntity.ok(response);
     }
 }
