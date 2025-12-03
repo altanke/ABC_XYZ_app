@@ -217,7 +217,7 @@ export default function Product() {
                   alt={product.name}
                   fill
                   sizes="(max-width: 768px) 100vw, 50vw"
-                  className="object-cover"
+                  className="object-contain"
                   onError={(e) => {
                     e.target.onerror = null;
                     e.target.src = "/placeholder.png";

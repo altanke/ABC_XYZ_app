@@ -51,12 +51,6 @@ export const UserProvider = ({ children }) => {
   };
 
   const logoutUser = async () => {
-    // Не обязательно делать запрос к бэкенду для logout, если нет сессии на сервере
-    // try {
-    //   await fetch("http://localhost:8080/api/users/logout", { method: "POST" });
-    // } catch (error) {
-    //   console.error("Ошибка при запросе logout на бэкенд:", error);
-    // } finally { // Выполняем действия в любом случае
     localStorage.removeItem("user");
     setCurrentUser(null);
     router.push("/");
@@ -69,7 +63,7 @@ export const UserProvider = ({ children }) => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ username, email, password, role: "USER" }), // Явно указываем роль USER
+        body: JSON.stringify({ username, email, password, role: "USER" }),
       });
 
       if (!response.ok) {

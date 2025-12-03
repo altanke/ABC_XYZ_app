@@ -204,9 +204,9 @@ public class ReportService {
             double cv = (mean == 0) ? 0 : stdDeviation / mean;
             report.setCoefficientOfVariation(cv);
 
-            if (cv <= 0.1) {
+            if (cv <= 0.4) {
                 report.setXyzClass("X");
-            } else if (cv <= 0.25) {
+            } else if (cv <= 0.8) {
                 report.setXyzClass("Y");
             } else {
                 report.setXyzClass("Z");

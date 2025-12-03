@@ -52,14 +52,16 @@ export default function ProductCard({ product }) {
   };
 
   return (
-    <div className="flex flex-col w-full border shadow-lg rounded-xl bg-white">
+    <div className="flex flex-col w-full border shadow-lg rounded-xl bg-white overflow-hidden">
+      {" "}
       <Link href={`/product/${product.id}`}>
-        <div className="w-full p-4 h-[450px] overflow-hidden cursor-pointer relative">
+        <div className="w-full aspect-square cursor-pointer relative">
+          {" "}
           <Image
             src={product.imageUrl || "/placeholder.png"}
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            className="object-cover rounded-sm"
+            className="object-contain"
             alt={product.name}
             onError={(e) => {
               e.target.onerror = null;
@@ -68,11 +70,11 @@ export default function ProductCard({ product }) {
           />
         </div>
       </Link>
-
-      <p className="text-center text-2xl font-bold mb-2">{product.name}</p>
+      <div className="min-h-16 flex items-center justify-center mb-2">
+        <p className="text-center text-2xl font-bold">{product.name}</p>
+      </div>
       <p className="text-center text-lg font-bold mb-2">{product.price} $</p>
       <p className="text-center text-lg mb-1">Категория: {product.category}</p>
-
       <div className="flex justify-center mb-2">
         <Link href={`/product/${product.id}`}>
           <button className="bg-[#52b788] rounded-lg py-2 px-4 hover:bg-[#40916c] text-white transition duration-300">
